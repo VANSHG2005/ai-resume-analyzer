@@ -13,13 +13,20 @@ async function loadPdfJs(): Promise<any> {
   if (loadPromise) return loadPromise;
 
   isLoading = true;
-  // @ts-expect-error - pdfjs-dist/build/pdf.mjs is not a module
-  loadPromise = import("pdfjs-dist/build/pdf.mjs").then((lib) => {
-    // Set the worker source to use local file
-    lib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-    pdfjsLib = lib;
-    isLoading = false;
-    return lib;
+  
+  // Load from CDN for better stability
+  loadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+    script.onload = () => {
+      // @ts-ignore - pdfjsLib will be available globally
+      pdfjsLib = window['pdfjsLib'];
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+      isLoading = false;
+      resolve(pdfjsLib);
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
   });
 
   return loadPromise;
@@ -73,7 +80,7 @@ export async function convertPdfToImage(
         },
         "image/png",
         1.0
-      ); 
+      ); // Set quality to maximum (1.0)
     });
   } catch (err) {
     return {
